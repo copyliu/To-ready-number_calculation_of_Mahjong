@@ -59,36 +59,30 @@ class pai:
   winhand_breakdown = [] #added for win hand break down output
   winhand_string = ''
   effective_string = ''
-  def checkReddora(self):
 
+  def checkReddora(self):
     self.red5manCount = 0
     self.red5pinCount = 0
     self.red5souCount = 0
-
     if (self.tehai[0]):
       self.red5manCount += self.tehai[0]
-
     if (self.tehai[10]):
       self.red5pinCount += self.tehai[10]
-
     if (self.tehai[20]):
       self.red5souCount += self.tehai[0]
 
   def moveReddora(self):
-
-    if (self.tehai[5] and self.red5manCount):
+    if (self.red5manCount):
       self.tehai[5] += self.tehai[0]
       self.tehai[0] = 0
-
-    if (self.tehai[15] and self.red5pinCount):
+    if (self.red5pinCount):
       self.tehai[15] += self.tehai[10]
       self.tehai[10] = 0
-
-    if (self.tehai[25] and self.red5souCount):
+    if (self.red5souCount):
       self.tehai[25] += self.tehai[20]
       self.tehai[20] = 0
 
-  def syantenCheck(self, fast = False):
+  def syantenCheck(self):
     self.fixed_mentsu_suu = int((14 - sum(self.tehai)) / 3)
     self.tempTehai = copy.deepcopy(self.tehai)
     self.toitsu_suu = 0
@@ -96,7 +90,6 @@ class pai:
     self.taatsu_suu = 0
     self.syanten_temp = 0
     self.syanten_suu = 8 - 2 * self.fixed_mentsu_suu
-
     self.winhand_breakdown = [] #added for win hand break down output
     self.jantou = 0
     self.koutsu_suu = 0
@@ -105,10 +98,10 @@ class pai:
     self.shuntsu = [pai.NULL_PAI] * 4
     self.koritsu = 0
     self.extractCount = 0
-    for i in range(30):
+    for i in range(30): #avoid 5th pair wait
       if self.tehai[i] == 4: self.n4 |= 1 << i
 
-    #independent triples, sequences and tiles check
+    #independent triples, sequences and tiles check, can remove?
     self.koutsu_suu = self.KanzenKoutsuCheck()
     self.shuntsu_suu = self.KanzenShuntsuCheck()
     self.mentsu_suu = self.koutsu_suu + self.shuntsu_suu + self.fixed_mentsu_suu
@@ -138,7 +131,7 @@ class pai:
           self.add_sequence(depth)
           self.extract(depth+1)
           self.del_sequence(depth)
-        self.add_tatsu_close(depth) #close wait
+        self.add_tatsu_close(depth) #close wait, can add "else"?
         self.extract(depth+1)
         self.del_tatsu_close(depth)
       if i < 9 and self.tempTehai[depth+1]: #open or end wait
@@ -316,7 +309,7 @@ class pai:
       self.mentsu_cut(1)
     else:
       for i in range(3):
-        #all possible heads are of the same kinds and congruence modulo
+        #all possible heads are of the same kinds and congruence modulo of 3
         self.jantou = head+3*i
         if self.tempTehai[self.jantou] >= 2:
           self.tempTehai[self.jantou] -= 2
@@ -469,8 +462,8 @@ class pai:
 
   def winhandOutput(self):
     for array in self.winhand_breakdown:
-      self.winhand_string += 'Basic win hand\n'
-      self.winhand_string += 'head: ' + pai.PAI_TYPE[array[0]] + ' ' + pai.PAI_TYPE[array[0]] + '\n'
+      self.winhand_string += 'Regular win hand\n'
+      self.winhand_string += 'Head: ' + pai.PAI_TYPE[array[0]] + ' ' + pai.PAI_TYPE[array[0]] + '\n'
       for i in range(4):
         if array[i+1] != pai.NULL_PAI:
           self.winhand_string += 'Triple: ' + pai.PAI_TYPE[array[i+1]] + ' ' + pai.PAI_TYPE[array[i+1]] + ' ' + pai.PAI_TYPE[array[i+1]] + '\n'
@@ -481,7 +474,7 @@ class pai:
 
   def EffectiveTiles(self, syanten_suu, syanten_seven, syanten_thirteen): #only 13 tiles hand
     syanten_min = min(int(syanten_suu + .5), int(syanten_seven + .5), int(syanten_thirteen + .5))
-    check = (syanten_min == int(syanten_suu + .5)) + ((syanten_min == int(syanten_seven + .5)) << 1) + ((syanten_min == int(syanten_thirteen + .5)) << 2) #bit expression, 1 for basic hand, 2 for seven pairs, 3 for thirteen orphans
+    check = (syanten_min == int(syanten_suu + .5)) + ((syanten_min == int(syanten_seven + .5)) << 1) + ((syanten_min == int(syanten_thirteen + .5)) << 2) #bit expression, 1 for regular hand, 2 for seven pairs, 4 for thirteen orphans
     effectivetiles = [0] * 38
     for i in range(38):
       if i % 10 == 0 or self.tehai[i] >= 4: continue
@@ -491,7 +484,7 @@ class pai:
       if check & 2 and self.tehai[i] < 2 and not effectivetiles[i]: #seven pairs
         if self.tehai[i] == 1: effectivetiles[i] = 3
         elif syanten_seven - int(syanten_seven): effectivetiles[i] = 4
-      if check & 1 and not effectivetiles[i]: #basic hand
+      if check & 1 and not effectivetiles[i]: #regular hand
         #tiles contact analysis, for virtual mode all are effective tiles
         if (i > 30 and not self.tehai[i]) or (i % 10 == 1 and not self.tehai[i] and not self.tehai[i+1] and not self.tehai[i+2]) or (i % 10 == 9 and not self.tehai[i-2] and not self.tehai[i-1] and not self.tehai[i]) or (not self.tehai[i-2] and not self.tehai[i-1] and not self.tehai[i] and not self.tehai[i+1] and not self.tehai[i+2]):
           if syanten_suu - int(syanten_suu): effectivetiles[i] = 4
@@ -499,8 +492,8 @@ class pai:
         array = copy.deepcopy(self.tehai)
         array[i] += 1
         try_pai = pai(array)
-        if syanten_suu >= 0:
-          if try_pai.syantenCheck(True) < syanten_suu:
+        if syanten_suu > 0:
+          if try_pai.syantenCheck() < syanten_suu:
             effectivetiles[i] = 4 - self.tehai[i]
         else:
           try_pai.winhand_breakdown = []
@@ -552,7 +545,8 @@ class pai:
       if not self.tehai[i]: effectivetiles[i] = 4
       elif syanten_thirteen - int(syanten_thirteen): effectivetiles[i] = 3
 
-  def click(self, allhands = True):
+  def calculate(self, allhands = True):
+    self.checkReddora()
     self.moveReddora()
     sum_tehai = sum(self.tehai)
     if sum_tehai > 14 or sum_tehai % 3 == 0: sys.exit('Invalid hand!')
@@ -575,7 +569,7 @@ class pai:
     else:
       print self.pai_array
     print
-    print 'Basic to ready number:', int(syanten_suu + 1.5) - 1
+    print 'Regular hand to ready number:', int(syanten_suu + 1.5) - 1
     if self.fixed_mentsu_suu == 0 and allhands:
       print 'Seven pairs to ready number:', int(syanten_seven + 1.5) - 1
       print 'Thirteen orphans to ready number:', int(syanten_thirteen + 1.5) - 1
@@ -634,10 +628,10 @@ def main():
   args = parser.parse_args()
   if args.pai != '':
     k = pai(args.pai)
-    k.click(False)
+    k.calculate(False)
   else:
     k = pai(args.qai)
-    k.click(True)
+    k.calculate(True)
 
 if __name__ == "__main__":
   main()
